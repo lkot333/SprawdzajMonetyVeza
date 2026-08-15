@@ -4,165 +4,113 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kontrola monety</title>
+
+<title>Test monety</title>
 
 <style>
-* {
-    box-sizing: border-box;
-}
 
 body {
     margin: 0;
-    background: #101010;
+    background: #111;
     color: white;
     font-family: Arial, sans-serif;
     text-align: center;
 }
 
 h1 {
-    margin: 20px 0;
+    margin: 20px;
 }
 
 .panel {
-    width: min(1100px, 95%);
-    margin: 15px auto;
+    width: min(900px, 94%);
+    margin: auto;
+    background: #222;
     padding: 20px;
-    background: #202020;
-    border-radius: 16px;
+    border-radius: 15px;
 }
 
 select,
 button,
 input {
     padding: 10px;
-    margin: 5px;
+    margin: 6px;
     border: 0;
     border-radius: 8px;
     font-size: 16px;
 }
 
 button {
-    background: #333;
+    background: #444;
     color: white;
     cursor: pointer;
 }
 
 button:hover {
-    background: #444;
+    background: #555;
 }
 
 #video {
-    width: min(1000px, 95%);
-    max-height: 65vh;
+    width: min(900px, 94%);
+    margin-top: 20px;
+    border-radius: 15px;
     background: black;
-    border-radius: 16px;
-    object-fit: contain;
 }
 
 #result {
-    width: min(1000px, 95%);
+    width: min(900px, 94%);
     margin: 20px auto;
-    padding: 30px;
-    border-radius: 16px;
-    background: #333;
-    font-size: 34px;
+    padding: 25px;
+    border-radius: 15px;
+    font-size: 32px;
     font-weight: bold;
+    background: #333;
 }
 
-#info {
-    font-size: 18px;
-    margin: 10px;
-}
-
-.templates {
-    width: min(1100px, 95%);
-    margin: 20px auto;
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 15px;
-}
-
-.template {
-    background: #202020;
-    padding: 12px;
-    border-radius: 14px;
-}
-
-.template img {
-    width: 100%;
-    aspect-ratio: 1;
-    object-fit: contain;
-    background: #000;
-    border-radius: 10px;
-}
-
-.score {
-    margin-top: 8px;
-    font-size: 18px;
-}
-
-.bar {
-    width: 100%;
-    height: 12px;
-    margin-top: 7px;
-    background: #444;
-    border-radius: 20px;
-    overflow: hidden;
-}
-
-.bar-inner {
-    width: 0%;
-    height: 100%;
-    background: #20c866;
-    transition: width .1s;
-}
-
-#threshold {
-    width: 75px;
+#score {
+    font-size: 20px;
 }
 
 #status {
-    margin: 10px;
     color: #aaa;
+    margin: 10px;
 }
 
-canvas {
-    display: none;
+#preview {
+    width: 220px;
+    height: 220px;
+    object-fit: contain;
+    background: black;
+    border-radius: 10px;
+    margin: 10px;
 }
 
-@media(max-width:700px) {
-
-    .templates {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    #result {
-        font-size: 24px;
-    }
+#loading {
+    color: #ffcc00;
 }
+
 </style>
 </head>
 
 <body>
 
-<h1>🪙 Kontrola monety</h1>
+<h1>🪙 Test rozpoznawania monety</h1>
 
 <div class="panel">
+
+    <div id="loading">
+        Ładowanie OpenCV...
+    </div>
 
     <h2>📷 Kamera</h2>
 
     <select id="cameraSelect">
-        <option value="">Wybierz kamerę...</option>
+        <option>Ładowanie kamer...</option>
     </select>
 
     <br>
 
     <button id="permission">
         🔓 Zezwól na kamery
-    </button>
-
-    <button id="refresh">
-        🔄 Odśwież
     </button>
 
     <button id="start">
@@ -175,20 +123,23 @@ canvas {
 
     <br><br>
 
-    <label>
-        Próg podobieństwa:
-        <input
-            id="threshold"
-            type="number"
-            min="0"
-            max="100"
-            value="60"
-        >
-        %
-    </label>
+    <h2>🪙 Wzorzec monety</h2>
+
+    <input
+        id="templateFile"
+        type="file"
+        accept="image/*"
+    >
+
+    <br>
+
+    <img
+        id="preview"
+        alt="Wzorzec"
+    >
 
     <div id="status">
-        Oczekiwanie...
+        Brak wzorca.
     </div>
 
 </div>
@@ -204,64 +155,18 @@ canvas {
     OCZEKIWANIE...
 </div>
 
-<div id="info">
-    Najlepsze podobieństwo: 0%
+<div id="score">
+    Dopasowane cechy: 0
 </div>
 
-<h2>🖼️ Wzorce</h2>
 
-<div class="templates">
-
-    <div class="template">
-        <h3>Wzorzec 1</h3>
-        <img id="preview1">
-        <input id="file1" type="file" accept="image/*">
-        <div id="score1" class="score">0%</div>
-
-        <div class="bar">
-            <div id="bar1" class="bar-inner"></div>
-        </div>
-    </div>
-
-    <div class="template">
-        <h3>Wzorzec 2</h3>
-        <img id="preview2">
-        <input id="file2" type="file" accept="image/*">
-        <div id="score2" class="score">0%</div>
-
-        <div class="bar">
-            <div id="bar2" class="bar-inner"></div>
-        </div>
-    </div>
-
-    <div class="template">
-        <h3>Wzorzec 3</h3>
-        <img id="preview3">
-        <input id="file3" type="file" accept="image/*">
-        <div id="score3" class="score">0%</div>
-
-        <div class="bar">
-            <div id="bar3" class="bar-inner"></div>
-        </div>
-    </div>
-
-    <div class="template">
-        <h3>Wzorzec 4</h3>
-        <img id="preview4">
-        <input id="file4" type="file" accept="image/*">
-        <div id="score4" class="score">0%</div>
-
-        <div class="bar">
-            <div id="bar4" class="bar-inner"></div>
-        </div>
-    </div>
-
-</div>
-
-<canvas id="cameraCanvas"></canvas>
-
+<script src="https://docs.opencv.org/4.x/opencv.js"></script>
 
 <script>
+
+let cvReady = false;
+let stream = null;
+let templateMat = null;
 
 const video =
     document.getElementById("video");
@@ -272,303 +177,54 @@ const cameraSelect =
 const result =
     document.getElementById("result");
 
-const info =
-    document.getElementById("info");
+const scoreText =
+    document.getElementById("score");
 
 const statusText =
     document.getElementById("status");
 
-const thresholdInput =
-    document.getElementById("threshold");
+const loading =
+    document.getElementById("loading");
 
-const cameraCanvas =
-    document.getElementById("cameraCanvas");
-
-const cameraCtx =
-    cameraCanvas.getContext("2d", {
-        willReadFrequently: true
-    });
-
-let stream = null;
-
-const SIZE = 32;
-
-const templates = [
-    null,
-    null,
-    null,
-    null
-];
+const preview =
+    document.getElementById("preview");
 
 
 /*
-==================================================
-POMOCNICZE
-==================================================
+========================================
+OPEN CV GOTOWE
+========================================
 */
 
-function clamp(value, min, max) {
-    return Math.max(min, Math.min(max, value));
+function onOpenCvReady() {
+
+    cvReady = true;
+
+    loading.textContent =
+        "OpenCV załadowane ✔";
+
+    loading.style.color =
+        "#55dd77";
 }
 
+if (typeof cv !== "undefined") {
 
-/*
-==================================================
-OBRAZ -> SKALA SZAROŚCI
-==================================================
-*/
+    if (cv.getBuildInformation) {
 
-function grayscale(data) {
+        onOpenCvReady();
 
-    const result = new Float32Array(
-        data.width * data.height
-    );
+    } else {
 
-    let p = 0;
-
-    for (
-        let i = 0;
-        i < data.data.length;
-        i += 4
-    ) {
-
-        const r = data.data[i];
-        const g = data.data[i + 1];
-        const b = data.data[i + 2];
-
-        result[p++] =
-            r * 0.299 +
-            g * 0.587 +
-            b * 0.114;
+        cv.onRuntimeInitialized =
+            onOpenCvReady;
     }
-
-    return result;
 }
 
 
 /*
-==================================================
-NORMALIZACJA JASNOŚCI
-
-Dzięki temu zmiana oświetlenia
-nie rozwala wyniku tak łatwo.
-==================================================
-*/
-
-function normalize(array) {
-
-    let sum = 0;
-
-    for (const value of array) {
-        sum += value;
-    }
-
-    const mean =
-        sum / array.length;
-
-    let variance = 0;
-
-    for (const value of array) {
-
-        const d =
-            value - mean;
-
-        variance += d * d;
-    }
-
-    const deviation =
-        Math.sqrt(
-            variance / array.length
-        ) || 1;
-
-    const output =
-        new Float32Array(
-            array.length
-        );
-
-    for (let i = 0; i < array.length; i++) {
-
-        output[i] =
-            (array[i] - mean) /
-            deviation;
-    }
-
-    return output;
-}
-
-
-/*
-==================================================
-OBRÓT WZORCA
-
-Tworzymy 0°, 90°, 180° i 270°.
-==================================================
-*/
-
-function rotatePattern(pattern, angle) {
-
-    const output =
-        new Float32Array(
-            SIZE * SIZE
-        );
-
-    for (let y = 0; y < SIZE; y++) {
-
-        for (let x = 0; x < SIZE; x++) {
-
-            let sx;
-            let sy;
-
-            if (angle === 0) {
-
-                sx = x;
-                sy = y;
-
-            } else if (angle === 90) {
-
-                sx = y;
-                sy = SIZE - 1 - x;
-
-            } else if (angle === 180) {
-
-                sx = SIZE - 1 - x;
-                sy = SIZE - 1 - y;
-
-            } else {
-
-                sx = SIZE - 1 - y;
-                sy = x;
-            }
-
-            output[
-                y * SIZE + x
-            ] =
-                pattern[
-                    sy * SIZE + sx
-                ];
-        }
-    }
-
-    return output;
-}
-
-
-/*
-==================================================
-WCZYTANIE WZORCA
-==================================================
-*/
-
-function prepareTemplate(image) {
-
-    const canvas =
-        document.createElement("canvas");
-
-    canvas.width = SIZE;
-    canvas.height = SIZE;
-
-    const ctx =
-        canvas.getContext("2d", {
-            willReadFrequently: true
-        });
-
-    ctx.drawImage(
-        image,
-        0,
-        0,
-        SIZE,
-        SIZE
-    );
-
-    const pixels =
-        ctx.getImageData(
-            0,
-            0,
-            SIZE,
-            SIZE
-        );
-
-    const gray =
-        grayscale(pixels);
-
-    const normalized =
-        normalize(gray);
-
-    return {
-
-        rotations: [
-            rotatePattern(normalized, 0),
-            rotatePattern(normalized, 90),
-            rotatePattern(normalized, 180),
-            rotatePattern(normalized, 270)
-        ]
-    };
-}
-
-
-/*
-==================================================
-WCZYTANIE 4 WZORCÓW
-==================================================
-*/
-
-for (let n = 1; n <= 4; n++) {
-
-    const input =
-        document.getElementById(
-            "file" + n
-        );
-
-    const preview =
-        document.getElementById(
-            "preview" + n
-        );
-
-    input.addEventListener(
-        "change",
-        function () {
-
-            const file =
-                this.files[0];
-
-            if (!file)
-                return;
-
-            const reader =
-                new FileReader();
-
-            reader.onload =
-                function (event) {
-
-                    preview.src =
-                        event.target.result;
-
-                    const image =
-                        new Image();
-
-                    image.onload =
-                        function () {
-
-                            templates[n - 1] =
-                                prepareTemplate(
-                                    image
-                                );
-                        };
-
-                    image.src =
-                        event.target.result;
-                };
-
-            reader.readAsDataURL(file);
-        }
-    );
-}
-
-
-/*
-==================================================
+========================================
 KAMERY
-==================================================
+========================================
 */
 
 async function loadCameras() {
@@ -581,14 +237,13 @@ async function loadCameras() {
 
         const cameras =
             devices.filter(
-                device =>
-                    device.kind ===
-                    "videoinput"
+                d =>
+                    d.kind === "videoinput"
             );
 
         cameraSelect.innerHTML = "";
 
-        if (!cameras.length) {
+        if (cameras.length === 0) {
 
             cameraSelect.innerHTML =
                 "<option>Brak kamer</option>";
@@ -609,8 +264,7 @@ async function loadCameras() {
 
                 option.textContent =
                     camera.label ||
-                    "Kamera " +
-                    (index + 1);
+                    "Kamera " + (index + 1);
 
                 cameraSelect.appendChild(
                     option
@@ -619,8 +273,9 @@ async function loadCameras() {
         );
 
         statusText.textContent =
-            "Znaleziono kamer: " +
-            cameras.length;
+            "Znaleziono " +
+            cameras.length +
+            " kamer.";
 
     } catch (error) {
 
@@ -633,26 +288,26 @@ async function loadCameras() {
 
 
 /*
-==================================================
-ZGODA
-==================================================
+========================================
+ZGODA NA KAMERĘ
+========================================
 */
 
 async function permission() {
 
     try {
 
-        const temporary =
+        const temp =
             await navigator.mediaDevices
                 .getUserMedia({
                     video: true,
                     audio: false
                 });
 
-        temporary
+        temp
             .getTracks()
-            .forEach(track =>
-                track.stop()
+            .forEach(
+                track => track.stop()
             );
 
         await loadCameras();
@@ -662,15 +317,15 @@ async function permission() {
         console.error(error);
 
         statusText.textContent =
-            "Brak dostępu do kamery.";
+            "Brak zgody na kamerę.";
     }
 }
 
 
 /*
-==================================================
-START
-==================================================
+========================================
+URUCHOM KAMERĘ
+========================================
 */
 
 async function startCamera() {
@@ -681,18 +336,9 @@ async function startCamera() {
 
             stream
                 .getTracks()
-                .forEach(track =>
-                    track.stop()
+                .forEach(
+                    track => track.stop()
                 );
-        }
-
-        const deviceId =
-            cameraSelect.value;
-
-        if (!deviceId) {
-
-            await permission();
-            return;
         }
 
         stream =
@@ -700,8 +346,10 @@ async function startCamera() {
                 .getUserMedia({
 
                     video: {
+
                         deviceId: {
-                            exact: deviceId
+                            exact:
+                                cameraSelect.value
                         },
 
                         width: {
@@ -733,9 +381,9 @@ async function startCamera() {
 
 
 /*
-==================================================
+========================================
 STOP
-==================================================
+========================================
 */
 
 function stopCamera() {
@@ -744,8 +392,8 @@ function stopCamera() {
 
         stream
             .getTracks()
-            .forEach(track =>
-                track.stop()
+            .forEach(
+                track => track.stop()
             );
 
         stream = null;
@@ -762,283 +410,360 @@ function stopCamera() {
 
 
 /*
-==================================================
-PORÓWNANIE DWÓCH OBRAZÓW
-
-Korelacja zamiast prostego odejmowania pikseli.
-==================================================
+========================================
+WCZYTANIE WZORCA
+========================================
 */
 
-function similarity(a, b) {
+document
+    .getElementById("templateFile")
+    .addEventListener(
+        "change",
+        function () {
 
-    let sum = 0;
+            const file =
+                this.files[0];
 
-    let aa = 0;
-    let bb = 0;
+            if (!file)
+                return;
 
-    for (let i = 0; i < a.length; i++) {
+            const reader =
+                new FileReader();
 
-        sum += a[i] * b[i];
+            reader.onload =
+                function (event) {
 
-        aa += a[i] * a[i];
+                    preview.src =
+                        event.target.result;
 
-        bb += b[i] * b[i];
-    }
+                    const image =
+                        new Image();
 
-    if (!aa || !bb)
-        return 0;
+                    image.onload =
+                        function () {
 
-    const correlation =
-        sum /
-        Math.sqrt(aa * bb);
+                            if (!cvReady) {
 
-    return clamp(
-        ((correlation + 1) / 2) * 100,
-        0,
-        100
+                                statusText.textContent =
+                                    "OpenCV jeszcze się ładuje.";
+
+                                return;
+                            }
+
+                            /*
+                                Wczytujemy wzorzec.
+                            */
+
+                            const canvas =
+                                document.createElement(
+                                    "canvas"
+                                );
+
+                            canvas.width =
+                                image.width;
+
+                            canvas.height =
+                                image.height;
+
+                            const ctx =
+                                canvas.getContext(
+                                    "2d"
+                                );
+
+                            ctx.drawImage(
+                                image,
+                                0,
+                                0
+                            );
+
+                            /*
+                                Poprzedni wzorzec
+                                usuwamy z pamięci.
+                            */
+
+                            if (templateMat) {
+
+                                templateMat.delete();
+
+                                templateMat = null;
+                            }
+
+                            templateMat =
+                                cv.imread(
+                                    canvas
+                                );
+
+                            /*
+                                Skala szarości.
+                            */
+
+                            const gray =
+                                new cv.Mat();
+
+                            cv.cvtColor(
+                                templateMat,
+                                gray,
+                                cv.COLOR_RGBA2GRAY
+                            );
+
+                            templateMat.delete();
+
+                            templateMat =
+                                gray;
+
+                            statusText.textContent =
+                                "Wzorzec gotowy ✔";
+                        };
+
+                    image.src =
+                        event.target.result;
+                };
+
+            reader.readAsDataURL(file);
+        }
     );
-}
 
 
 /*
-==================================================
-WYCIĘCIE FRAGMENTU KAMERY
-==================================================
+========================================
+ORB
+========================================
 */
 
-function getCameraPatch(
-    source,
-    x,
-    y,
-    width,
-    height
+function detectFeatures(
+    image
 ) {
 
-    const patchCanvas =
-        document.createElement("canvas");
+    const orb =
+        new cv.ORB();
 
-    patchCanvas.width = SIZE;
-    patchCanvas.height = SIZE;
+    const keypoints =
+        new cv.KeyPointVector();
 
-    const patchCtx =
-        patchCanvas.getContext("2d", {
-            willReadFrequently: true
-        });
+    const descriptors =
+        new cv.Mat();
 
-    patchCtx.drawImage(
-        source,
-        x,
-        y,
-        width,
-        height,
-        0,
-        0,
-        SIZE,
-        SIZE
+    orb.detectAndCompute(
+        image,
+        new cv.Mat(),
+        keypoints,
+        descriptors
     );
 
-    const pixels =
-        patchCtx.getImageData(
-            0,
-            0,
-            SIZE,
-            SIZE
-        );
-
-    return normalize(
-        grayscale(pixels)
-    );
+    return {
+        orb,
+        keypoints,
+        descriptors
+    };
 }
 
 
 /*
-==================================================
-SZUKANIE W CAŁYM OBRAZIE
-
-Przeszukujemy różne miejsca
-i różne rozmiary.
-==================================================
+========================================
+PORÓWNANIE
+========================================
 */
 
-function findBestMatch(template) {
+function compareWithTemplate(
+    frame
+) {
 
-    if (!template)
+    if (
+        !templateMat ||
+        templateMat.empty()
+    ) {
+
         return 0;
-
-    const videoWidth =
-        video.videoWidth;
-
-    const videoHeight =
-        video.videoHeight;
-
-    if (!videoWidth || !videoHeight)
-        return 0;
+    }
 
     /*
-        Rozmiary fragmentu.
-        Dzięki temu moneta może być
-        bliżej albo dalej od kamery.
+        Wykrywamy cechy wzorca.
     */
 
-    const scales = [
-        0.25,
-        0.35,
-        0.50,
-        0.65,
-        0.80
-    ];
+    const template =
+        detectFeatures(
+            templateMat
+        );
 
-    let best = 0;
+    /*
+        Wykrywamy cechy aktualnego
+        obrazu z kamery.
+    */
 
-    for (const scale of scales) {
+    const current =
+        detectFeatures(
+            frame
+        );
 
-        const patchWidth =
-            videoWidth * scale;
+    if (
+        template.descriptors.empty() ||
+        current.descriptors.empty()
+    ) {
 
-        const patchHeight =
-            patchWidth;
+        template.orb.delete();
+        template.keypoints.delete();
+        template.descriptors.delete();
 
-        if (
-            patchWidth > videoWidth ||
-            patchHeight > videoHeight
-        )
+        current.orb.delete();
+        current.keypoints.delete();
+        current.descriptors.delete();
+
+        return 0;
+    }
+
+    /*
+        BFMatcher:
+        porównuje deskryptory ORB.
+    */
+
+    const matcher =
+        new cv.BFMatcher(
+            cv.NORM_HAMMING,
+            false
+        );
+
+    const matches =
+        new cv.DMatchVectorVector();
+
+    matcher.knnMatch(
+        template.descriptors,
+        current.descriptors,
+        matches,
+        2
+    );
+
+    let good = 0;
+
+    /*
+        Test Lowe'a.
+        Odrzuca przypadkowe dopasowania.
+    */
+
+    for (
+        let i = 0;
+        i < matches.size();
+        i++
+    ) {
+
+        const pair =
+            matches.get(i);
+
+        if (pair.size() < 2)
             continue;
 
-        /*
-            Co kilka procent kadru.
-            Nie sprawdzamy każdego piksela,
-            bo byłoby to bardzo ciężkie dla CPU.
-        */
+        const first =
+            pair.get(0);
 
-        const stepX =
-            Math.max(
-                20,
-                Math.floor(
-                    videoWidth * 0.08
-                )
-            );
+        const second =
+            pair.get(1);
 
-        const stepY =
-            Math.max(
-                20,
-                Math.floor(
-                    videoHeight * 0.08
-                )
-            );
-
-        for (
-            let y = 0;
-            y <= videoHeight - patchHeight;
-            y += stepY
+        if (
+            first.distance <
+            0.72 * second.distance
         ) {
 
-            for (
-                let x = 0;
-                x <= videoWidth - patchWidth;
-                x += stepX
-            ) {
-
-                const patch =
-                    getCameraPatch(
-                        video,
-                        x,
-                        y,
-                        patchWidth,
-                        patchHeight
-                    );
-
-                /*
-                    Sprawdzamy 4 obroty.
-                */
-
-                for (
-                    const rotated
-                    of template.rotations
-                ) {
-
-                    const score =
-                        similarity(
-                            patch,
-                            rotated
-                        );
-
-                    if (score > best)
-                        best = score;
-                }
-            }
+            good++;
         }
     }
 
-    return best;
+    /*
+        Sprzątanie pamięci OpenCV.
+    */
+
+    matcher.delete();
+
+    template.orb.delete();
+    template.keypoints.delete();
+    template.descriptors.delete();
+
+    current.orb.delete();
+    current.keypoints.delete();
+    current.descriptors.delete();
+
+    return good;
 }
 
 
 /*
-==================================================
-ANALIZA
-==================================================
+========================================
+ANALIZA KAMERY
+========================================
 */
 
-let analyzing = false;
+const frameCanvas =
+    document.createElement("canvas");
 
-async function analyze() {
+const frameCtx =
+    frameCanvas.getContext("2d");
+
+
+function analyze() {
 
     if (
         stream &&
         video.readyState >= 2 &&
-        !analyzing
+        cvReady &&
+        templateMat
     ) {
 
-        analyzing = true;
+        /*
+            Pobieramy mały obraz
+            z kamery.
+        */
 
-        let bestScore = 0;
-        let bestNumber = 0;
+        frameCanvas.width = 640;
+        frameCanvas.height = 480;
 
-        for (let i = 0; i < 4; i++) {
+        frameCtx.drawImage(
+            video,
+            0,
+            0,
+            640,
+            480
+        );
 
-            const score =
-                findBestMatch(
-                    templates[i]
-                );
-
-            const rounded =
-                Math.round(score);
-
-            document.getElementById(
-                "score" + (i + 1)
-            ).textContent =
-                rounded + "%";
-
-            document.getElementById(
-                "bar" + (i + 1)
-            ).style.width =
-                rounded + "%";
-
-            if (score > bestScore) {
-
-                bestScore = score;
-                bestNumber = i + 1;
-            }
-        }
-
-        const threshold =
-            Number(
-                thresholdInput.value
+        let frame =
+            cv.imread(
+                frameCanvas
             );
 
-        info.textContent =
-            "Najlepsze podobieństwo: " +
-            Math.round(bestScore) +
-            "% — wzorzec " +
-            bestNumber;
+        let gray =
+            new cv.Mat();
 
-        if (
-            bestNumber > 0 &&
-            bestScore >= threshold
-        ) {
+        cv.cvtColor(
+            frame,
+            gray,
+            cv.COLOR_RGBA2GRAY
+        );
+
+        frame.delete();
+
+        /*
+            Liczymy dopasowane cechy.
+        */
+
+        const good =
+            compareWithTemplate(
+                gray
+            );
+
+        gray.delete();
+
+        scoreText.textContent =
+            "Dopasowane cechy: " +
+            good;
+
+        /*
+            Próg testowy.
+            
+            15+ dobrych cech:
+            uznajemy za monetę.
+        */
+
+        if (good >= 15) {
 
             result.textContent =
-                "ODBIERZ MONETĘ I PRZEJDŹ";
+                "🪙 ODBIERZ MONETĘ I PRZEJDŹ";
 
             result.style.background =
                 "#087f23";
@@ -1051,35 +776,23 @@ async function analyze() {
             result.style.background =
                 "#8b0000";
         }
-
-        analyzing = false;
     }
-
-    /*
-        Analizujemy mniej więcej 4 razy na sekundę,
-        żeby nie zajechać procesora.
-    */
 
     setTimeout(
         () => requestAnimationFrame(analyze),
-        250
+        300
     );
 }
 
 
 /*
-==================================================
+========================================
 PRZYCISKI
-==================================================
+========================================
 */
 
 document
     .getElementById("permission")
-    .onclick =
-    permission;
-
-document
-    .getElementById("refresh")
     .onclick =
     permission;
 
@@ -1095,7 +808,7 @@ document
 
 cameraSelect.addEventListener(
     "change",
-    () => {
+    function () {
 
         if (stream)
             startCamera();
@@ -1104,9 +817,9 @@ cameraSelect.addEventListener(
 
 
 /*
-==================================================
+========================================
 START
-==================================================
+========================================
 */
 
 permission();
