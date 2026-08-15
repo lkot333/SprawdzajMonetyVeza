@@ -5,7 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>Test monety</title>
+<title>Test monety - diagnostyka</title>
 
 <style>
 
@@ -23,9 +23,9 @@ h1 {
 
 .panel {
     width: min(900px, 94%);
-    margin: auto;
-    background: #222;
+    margin: 15px auto;
     padding: 20px;
+    background: #222;
     border-radius: 15px;
 }
 
@@ -66,13 +66,26 @@ button:hover {
     background: #333;
 }
 
-#score {
-    font-size: 20px;
+#stats {
+    width: min(900px, 94%);
+    margin: 15px auto;
+    padding: 20px;
+    background: #222;
+    border-radius: 15px;
+    font-size: 19px;
+    line-height: 1.8;
 }
 
-#status {
-    color: #aaa;
-    margin: 10px;
+.good {
+    color: #42e878;
+}
+
+.bad {
+    color: #ff5555;
+}
+
+.warning {
+    color: #ffd447;
 }
 
 #preview {
@@ -84,8 +97,13 @@ button:hover {
     margin: 10px;
 }
 
+#status {
+    color: #aaa;
+    margin: 10px;
+}
+
 #loading {
-    color: #ffcc00;
+    color: #ffd447;
 }
 
 </style>
@@ -93,7 +111,7 @@ button:hover {
 
 <body>
 
-<h1>🪙 Test rozpoznawania monety</h1>
+<h1>🪙 Diagnostyka monety</h1>
 
 <div class="panel">
 
@@ -121,9 +139,7 @@ button:hover {
         ⏹ Zatrzymaj
     </button>
 
-    <br><br>
-
-    <h2>🪙 Wzorzec monety</h2>
+    <h2>🪙 Wzorzec</h2>
 
     <input
         id="templateFile"
@@ -133,10 +149,7 @@ button:hover {
 
     <br>
 
-    <img
-        id="preview"
-        alt="Wzorzec"
-    >
+    <img id="preview">
 
     <div id="status">
         Brak wzorca.
@@ -155,8 +168,33 @@ button:hover {
     OCZEKIWANIE...
 </div>
 
-<div id="score">
-    Dopasowane cechy: 0
+<div id="stats">
+
+    <div>
+        Cechy wzorca:
+        <b id="templateFeatures">0</b>
+    </div>
+
+    <div>
+        Cechy kamery:
+        <b id="cameraFeatures">0</b>
+    </div>
+
+    <div>
+        Wszystkie dopasowania:
+        <b id="allMatches">0</b>
+    </div>
+
+    <div>
+        Dobre dopasowania:
+        <b id="goodMatches">0</b>
+    </div>
+
+    <div>
+        Procent wzorca:
+        <b id="percentage">0%</b>
+    </div>
+
 </div>
 
 
@@ -165,20 +203,34 @@ button:hover {
 <script>
 
 let cvReady = false;
+
 let stream = null;
+
 let templateMat = null;
+
+let templateKeypoints = null;
+
+let templateDescriptors = null;
+
+let orb = null;
+
+
+/*
+========================================
+ELEMENTY
+========================================
+*/
 
 const video =
     document.getElementById("video");
 
 const cameraSelect =
-    document.getElementById("cameraSelect");
+    document.getElementById(
+        "cameraSelect"
+    );
 
 const result =
     document.getElementById("result");
-
-const scoreText =
-    document.getElementById("score");
 
 const statusText =
     document.getElementById("status");
@@ -192,32 +244,90 @@ const preview =
 
 /*
 ========================================
-OPEN CV GOTOWE
+STATYSTYKI
 ========================================
 */
 
-function onOpenCvReady() {
+const templateFeatures =
+    document.getElementById(
+        "templateFeatures"
+    );
+
+const cameraFeatures =
+    document.getElementById(
+        "cameraFeatures"
+    );
+
+const allMatches =
+    document.getElementById(
+        "allMatches"
+    );
+
+const goodMatches =
+    document.getElementById(
+        "goodMatches"
+    );
+
+const percentage =
+    document.getElementById(
+        "percentage"
+    );
+
+
+/*
+========================================
+OPENCV
+========================================
+*/
+
+function openCvReady() {
 
     cvReady = true;
 
     loading.textContent =
         "OpenCV załadowane ✔";
 
-    loading.style.color =
-        "#55dd77";
+    loading.className =
+        "good";
 }
 
 if (typeof cv !== "undefined") {
 
     if (cv.getBuildInformation) {
 
-        onOpenCvReady();
+        openCvReady();
 
     } else {
 
         cv.onRuntimeInitialized =
-            onOpenCvReady;
+            openCvReady;
     }
+}
+
+
+/*
+========================================
+ORB
+========================================
+*/
+
+function createORB() {
+
+    if (orb)
+        return;
+
+    orb =
+        new cv.ORB(
+            2000,
+            1.2,
+            8,
+            31,
+            0,
+            2,
+            cv.ORB_HARRIS_SCORE,
+            31,
+            20
+        );
 }
 
 
@@ -238,18 +348,11 @@ async function loadCameras() {
         const cameras =
             devices.filter(
                 d =>
-                    d.kind === "videoinput"
+                    d.kind ===
+                    "videoinput"
             );
 
         cameraSelect.innerHTML = "";
-
-        if (cameras.length === 0) {
-
-            cameraSelect.innerHTML =
-                "<option>Brak kamer</option>";
-
-            return;
-        }
 
         cameras.forEach(
             (camera, index) => {
@@ -264,7 +367,8 @@ async function loadCameras() {
 
                 option.textContent =
                     camera.label ||
-                    "Kamera " + (index + 1);
+                    "Kamera " +
+                    (index + 1);
 
                 cameraSelect.appendChild(
                     option
@@ -273,23 +377,22 @@ async function loadCameras() {
         );
 
         statusText.textContent =
-            "Znaleziono " +
-            cameras.length +
-            " kamer.";
+            "Znaleziono kamer: " +
+            cameras.length;
 
     } catch (error) {
 
         console.error(error);
 
         statusText.textContent =
-            "Nie można pobrać kamer.";
+            "Błąd pobierania kamer.";
     }
 }
 
 
 /*
 ========================================
-ZGODA NA KAMERĘ
+ZGODA
 ========================================
 */
 
@@ -317,14 +420,14 @@ async function permission() {
         console.error(error);
 
         statusText.textContent =
-            "Brak zgody na kamerę.";
+            "Brak dostępu do kamery.";
     }
 }
 
 
 /*
 ========================================
-URUCHOM KAMERĘ
+START KAMERY
 ========================================
 */
 
@@ -450,9 +553,7 @@ document
                                 return;
                             }
 
-                            /*
-                                Wczytujemy wzorzec.
-                            */
+                            createORB();
 
                             const canvas =
                                 document.createElement(
@@ -477,42 +578,65 @@ document
                             );
 
                             /*
-                                Poprzedni wzorzec
-                                usuwamy z pamięci.
+                                Usuwamy stary wzorzec.
                             */
 
-                            if (templateMat) {
-
+                            if (templateMat)
                                 templateMat.delete();
 
-                                templateMat = null;
-                            }
+                            if (templateKeypoints)
+                                templateKeypoints.delete();
 
-                            templateMat =
+                            if (templateDescriptors)
+                                templateDescriptors.delete();
+
+                            /*
+                                Obraz wzorca.
+                            */
+
+                            const original =
                                 cv.imread(
                                     canvas
                                 );
 
-                            /*
-                                Skala szarości.
-                            */
-
-                            const gray =
+                            templateMat =
                                 new cv.Mat();
 
                             cv.cvtColor(
+                                original,
                                 templateMat,
-                                gray,
                                 cv.COLOR_RGBA2GRAY
                             );
 
-                            templateMat.delete();
+                            original.delete();
 
-                            templateMat =
-                                gray;
+                            /*
+                                Punkty wzorca.
+                            */
+
+                            templateKeypoints =
+                                new cv.KeyPointVector();
+
+                            templateDescriptors =
+                                new cv.Mat();
+
+                            orb.detectAndCompute(
+                                templateMat,
+                                new cv.Mat(),
+                                templateKeypoints,
+                                templateDescriptors
+                            );
+
+                            templateFeatures.textContent =
+                                templateKeypoints.size();
 
                             statusText.textContent =
                                 "Wzorzec gotowy ✔";
+
+                            console.log(
+                                "Cechy wzorca:",
+                                templateKeypoints.size()
+                            );
                         };
 
                     image.src =
@@ -526,94 +650,124 @@ document
 
 /*
 ========================================
-ORB
+CANVAS KAMERY
 ========================================
 */
 
-function detectFeatures(
-    image
-) {
+const canvas =
+    document.createElement("canvas");
 
-    const orb =
-        new cv.ORB();
+canvas.width = 640;
+canvas.height = 480;
 
-    const keypoints =
-        new cv.KeyPointVector();
-
-    const descriptors =
-        new cv.Mat();
-
-    orb.detectAndCompute(
-        image,
-        new cv.Mat(),
-        keypoints,
-        descriptors
-    );
-
-    return {
-        orb,
-        keypoints,
-        descriptors
-    };
-}
+const canvasCtx =
+    canvas.getContext("2d");
 
 
 /*
 ========================================
-PORÓWNANIE
+ANALIZA
 ========================================
 */
 
-function compareWithTemplate(
-    frame
-) {
+function analyze() {
 
     if (
-        !templateMat ||
-        templateMat.empty()
+        !cvReady ||
+        !stream ||
+        !templateDescriptors ||
+        video.readyState < 2
     ) {
 
-        return 0;
+        requestAnimationFrame(analyze);
+
+        return;
     }
 
     /*
-        Wykrywamy cechy wzorca.
+        Obraz z kamery.
     */
 
-    const template =
-        detectFeatures(
-            templateMat
-        );
+    canvasCtx.drawImage(
+        video,
+        0,
+        0,
+        640,
+        480
+    );
+
+    let frame =
+        cv.imread(canvas);
+
+    let gray =
+        new cv.Mat();
+
+    cv.cvtColor(
+        frame,
+        gray,
+        cv.COLOR_RGBA2GRAY
+    );
+
+    frame.delete();
 
     /*
-        Wykrywamy cechy aktualnego
-        obrazu z kamery.
+        Cechy kamery.
     */
 
-    const current =
-        detectFeatures(
-            frame
-        );
+    const cameraKeypoints =
+        new cv.KeyPointVector();
+
+    const cameraDescriptors =
+        new cv.Mat();
+
+    orb.detectAndCompute(
+        gray,
+        new cv.Mat(),
+        cameraKeypoints,
+        cameraDescriptors
+    );
+
+    cameraFeatures.textContent =
+        cameraKeypoints.size();
+
+    /*
+        Jeśli kamera nie ma cech.
+    */
 
     if (
-        template.descriptors.empty() ||
-        current.descriptors.empty()
+        cameraDescriptors.empty()
     ) {
 
-        template.orb.delete();
-        template.keypoints.delete();
-        template.descriptors.delete();
+        allMatches.textContent =
+            "0";
 
-        current.orb.delete();
-        current.keypoints.delete();
-        current.descriptors.delete();
+        goodMatches.textContent =
+            "0";
 
-        return 0;
+        percentage.textContent =
+            "0%";
+
+        result.textContent =
+            "SPADAJ STĄD";
+
+        result.style.background =
+            "#8b0000";
+
+        gray.delete();
+        cameraKeypoints.delete();
+        cameraDescriptors.delete();
+
+        setTimeout(
+            () =>
+                requestAnimationFrame(analyze),
+            500
+        );
+
+        return;
     }
 
     /*
-        BFMatcher:
-        porównuje deskryptory ORB.
+        Dopasowanie ORB.
     */
 
     const matcher =
@@ -626,18 +780,15 @@ function compareWithTemplate(
         new cv.DMatchVectorVector();
 
     matcher.knnMatch(
-        template.descriptors,
-        current.descriptors,
+        templateDescriptors,
+        cameraDescriptors,
         matches,
         2
     );
 
     let good = 0;
 
-    /*
-        Test Lowe'a.
-        Odrzuca przypadkowe dopasowania.
-    */
+    let total = matches.size();
 
     for (
         let i = 0;
@@ -657,130 +808,94 @@ function compareWithTemplate(
         const second =
             pair.get(1);
 
+        /*
+            Test Lowe'a.
+        */
+
         if (
             first.distance <
-            0.72 * second.distance
+            0.75 * second.distance
         ) {
 
             good++;
         }
     }
 
+    allMatches.textContent =
+        total;
+
+    goodMatches.textContent =
+        good;
+
+    const templateCount =
+        templateKeypoints.size();
+
+    const percent =
+        templateCount > 0
+        ? (good / templateCount) * 100
+        : 0;
+
+    const rounded =
+        Math.round(
+            Math.min(100, percent)
+        );
+
+    percentage.textContent =
+        rounded + "%";
+
+
     /*
-        Sprzątanie pamięci OpenCV.
+        Na razie tylko diagnostyka.
+        
+        10 dobrych dopasowań
+        oznacza "znaleziono".
+    */
+
+    if (good >= 10) {
+
+        result.textContent =
+            "🪙 ODBIERZ MONETĘ I PRZEJDŹ";
+
+        result.style.background =
+            "#087f23";
+
+        result.className =
+            "good";
+
+    } else {
+
+        result.textContent =
+            "SPADAJ STĄD";
+
+        result.style.background =
+            "#8b0000";
+
+        result.className =
+            "bad";
+    }
+
+
+    /*
+        Sprzątanie pamięci.
     */
 
     matcher.delete();
 
-    template.orb.delete();
-    template.keypoints.delete();
-    template.descriptors.delete();
+    gray.delete();
 
-    current.orb.delete();
-    current.keypoints.delete();
-    current.descriptors.delete();
+    cameraKeypoints.delete();
 
-    return good;
-}
+    cameraDescriptors.delete();
 
 
-/*
-========================================
-ANALIZA KAMERY
-========================================
-*/
-
-const frameCanvas =
-    document.createElement("canvas");
-
-const frameCtx =
-    frameCanvas.getContext("2d");
-
-
-function analyze() {
-
-    if (
-        stream &&
-        video.readyState >= 2 &&
-        cvReady &&
-        templateMat
-    ) {
-
-        /*
-            Pobieramy mały obraz
-            z kamery.
-        */
-
-        frameCanvas.width = 640;
-        frameCanvas.height = 480;
-
-        frameCtx.drawImage(
-            video,
-            0,
-            0,
-            640,
-            480
-        );
-
-        let frame =
-            cv.imread(
-                frameCanvas
-            );
-
-        let gray =
-            new cv.Mat();
-
-        cv.cvtColor(
-            frame,
-            gray,
-            cv.COLOR_RGBA2GRAY
-        );
-
-        frame.delete();
-
-        /*
-            Liczymy dopasowane cechy.
-        */
-
-        const good =
-            compareWithTemplate(
-                gray
-            );
-
-        gray.delete();
-
-        scoreText.textContent =
-            "Dopasowane cechy: " +
-            good;
-
-        /*
-            Próg testowy.
-            
-            15+ dobrych cech:
-            uznajemy za monetę.
-        */
-
-        if (good >= 15) {
-
-            result.textContent =
-                "🪙 ODBIERZ MONETĘ I PRZEJDŹ";
-
-            result.style.background =
-                "#087f23";
-
-        } else {
-
-            result.textContent =
-                "SPADAJ STĄD";
-
-            result.style.background =
-                "#8b0000";
-        }
-    }
+    /*
+        Następna analiza.
+    */
 
     setTimeout(
-        () => requestAnimationFrame(analyze),
-        300
+        () =>
+            requestAnimationFrame(analyze),
+        500
     );
 }
 
@@ -805,15 +920,6 @@ document
     .getElementById("stop")
     .onclick =
     stopCamera;
-
-cameraSelect.addEventListener(
-    "change",
-    function () {
-
-        if (stream)
-            startCamera();
-    }
-);
 
 
 /*
