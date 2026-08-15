@@ -1,14 +1,11 @@
-```html
 <!DOCTYPE html>
 <html lang="pl">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Test monety - diagnostyka</title>
+<title>Test monety</title>
 
 <style>
-
 body {
     margin: 0;
     background: #111;
@@ -105,13 +102,12 @@ button:hover {
 #loading {
     color: #ffd447;
 }
-
 </style>
 </head>
 
 <body>
 
-<h1>🪙 Diagnostyka monety</h1>
+<h1>🪙 Test rozpoznawania monety</h1>
 
 <div class="panel">
 
@@ -139,7 +135,7 @@ button:hover {
         ⏹ Zatrzymaj
     </button>
 
-    <h2>🪙 Wzorzec</h2>
+    <h2>🪙 Wzorzec monety</h2>
 
     <input
         id="templateFile"
@@ -149,7 +145,10 @@ button:hover {
 
     <br>
 
-    <img id="preview">
+    <img
+        id="preview"
+        alt="Wzorzec"
+    >
 
     <div id="status">
         Brak wzorca.
@@ -195,10 +194,17 @@ button:hover {
         <b id="percentage">0%</b>
     </div>
 
+    <div>
+        Próg:
+        <b>30%</b>
+    </div>
+
 </div>
 
 
+<!-- OpenCV.js -->
 <script src="https://docs.opencv.org/4.x/opencv.js"></script>
+
 
 <script>
 
@@ -215,19 +221,15 @@ let templateDescriptors = null;
 let orb = null;
 
 
-/*
-========================================
-ELEMENTY
-========================================
-*/
+/* ========================================
+   ELEMENTY
+======================================== */
 
 const video =
     document.getElementById("video");
 
 const cameraSelect =
-    document.getElementById(
-        "cameraSelect"
-    );
+    document.getElementById("cameraSelect");
 
 const result =
     document.getElementById("result");
@@ -241,44 +243,45 @@ const loading =
 const preview =
     document.getElementById("preview");
 
-
-/*
-========================================
-STATYSTYKI
-========================================
-*/
-
 const templateFeatures =
-    document.getElementById(
-        "templateFeatures"
-    );
+    document.getElementById("templateFeatures");
 
 const cameraFeatures =
-    document.getElementById(
-        "cameraFeatures"
-    );
+    document.getElementById("cameraFeatures");
 
 const allMatches =
-    document.getElementById(
-        "allMatches"
-    );
+    document.getElementById("allMatches");
 
 const goodMatches =
-    document.getElementById(
-        "goodMatches"
-    );
+    document.getElementById("goodMatches");
 
 const percentage =
-    document.getElementById(
-        "percentage"
-    );
+    document.getElementById("percentage");
+
+
+/* ========================================
+   USTAWIENIA
+======================================== */
+
+/*
+   Ile procent cech wzorca musi pasować,
+   żeby uznać obraz za monetę.
+*/
+const MATCH_THRESHOLD = 30;
 
 
 /*
-========================================
-OPENCV
-========================================
+   Test Lowe'a.
+
+   0.95 = bardziej tolerancyjny
+   0.75 = bardzo restrykcyjny
 */
+const LOWE_RATIO = 0.95;
+
+
+/* ========================================
+   OPENCV
+======================================== */
 
 function openCvReady() {
 
@@ -305,37 +308,32 @@ if (typeof cv !== "undefined") {
 }
 
 
-/*
-========================================
-ORB
-========================================
-*/
+/* ========================================
+   ORB
+======================================== */
 
 function createORB() {
 
     if (orb)
         return;
 
-    orb =
-        new cv.ORB(
-            2000,
-            1.2,
-            8,
-            31,
-            0,
-            2,
-            cv.ORB_HARRIS_SCORE,
-            31,
-            20
-        );
+    orb = new cv.ORB(
+        2000,
+        1.2,
+        8,
+        31,
+        0,
+        2,
+        cv.ORB_HARRIS_SCORE,
+        31,
+        20
+    );
 }
 
 
-/*
-========================================
-KAMERY
-========================================
-*/
+/* ========================================
+   KAMERY
+======================================== */
 
 async function loadCameras() {
 
@@ -347,12 +345,23 @@ async function loadCameras() {
 
         const cameras =
             devices.filter(
-                d =>
-                    d.kind ===
+                device =>
+                    device.kind ===
                     "videoinput"
             );
 
         cameraSelect.innerHTML = "";
+
+        if (cameras.length === 0) {
+
+            cameraSelect.innerHTML =
+                "<option>Brak kamer</option>";
+
+            statusText.textContent =
+                "Nie znaleziono kamer.";
+
+            return;
+        }
 
         cameras.forEach(
             (camera, index) => {
@@ -390,27 +399,26 @@ async function loadCameras() {
 }
 
 
-/*
-========================================
-ZGODA
-========================================
-*/
+/* ========================================
+   ZGODA NA KAMERĘ
+======================================== */
 
 async function permission() {
 
     try {
 
-        const temp =
+        const temporaryStream =
             await navigator.mediaDevices
                 .getUserMedia({
                     video: true,
                     audio: false
                 });
 
-        temp
+        temporaryStream
             .getTracks()
             .forEach(
-                track => track.stop()
+                track =>
+                    track.stop()
             );
 
         await loadCameras();
@@ -425,11 +433,9 @@ async function permission() {
 }
 
 
-/*
-========================================
-START KAMERY
-========================================
-*/
+/* ========================================
+   START KAMERY
+======================================== */
 
 async function startCamera() {
 
@@ -440,8 +446,17 @@ async function startCamera() {
             stream
                 .getTracks()
                 .forEach(
-                    track => track.stop()
+                    track =>
+                        track.stop()
                 );
+        }
+
+        if (!cameraSelect.value) {
+
+            statusText.textContent =
+                "Najpierw wybierz kamerę.";
+
+            return;
         }
 
         stream =
@@ -471,23 +486,22 @@ async function startCamera() {
             stream;
 
         statusText.textContent =
-            "Kamera działa.";
+            "Kamera działa ✔";
 
     } catch (error) {
 
         console.error(error);
 
         statusText.textContent =
+            "Błąd kamery: " +
             error.message;
     }
 }
 
 
-/*
-========================================
-STOP
-========================================
-*/
+/* ========================================
+   STOP KAMERY
+======================================== */
 
 function stopCamera() {
 
@@ -496,7 +510,8 @@ function stopCamera() {
         stream
             .getTracks()
             .forEach(
-                track => track.stop()
+                track =>
+                    track.stop()
             );
 
         stream = null;
@@ -512,11 +527,9 @@ function stopCamera() {
 }
 
 
-/*
-========================================
-WCZYTANIE WZORCA
-========================================
-*/
+/* ========================================
+   WCZYTYWANIE WZORCA
+======================================== */
 
 document
     .getElementById("templateFile")
@@ -555,6 +568,10 @@ document
 
                             createORB();
 
+                            /*
+                               Canvas wzorca.
+                            */
+
                             const canvas =
                                 document.createElement(
                                     "canvas"
@@ -577,27 +594,47 @@ document
                                 0
                             );
 
+
                             /*
-                                Usuwamy stary wzorzec.
+                               Usuwamy poprzedni wzorzec.
                             */
 
-                            if (templateMat)
+                            if (templateMat) {
+
                                 templateMat.delete();
 
-                            if (templateKeypoints)
+                                templateMat =
+                                    null;
+                            }
+
+                            if (templateKeypoints) {
+
                                 templateKeypoints.delete();
 
-                            if (templateDescriptors)
+                                templateKeypoints =
+                                    null;
+                            }
+
+                            if (templateDescriptors) {
+
                                 templateDescriptors.delete();
 
+                                templateDescriptors =
+                                    null;
+                            }
+
+
                             /*
-                                Obraz wzorca.
+                               Wczytujemy obraz.
                             */
 
                             const original =
-                                cv.imread(
-                                    canvas
-                                );
+                                cv.imread(canvas);
+
+
+                            /*
+                               Skala szarości.
+                            */
 
                             templateMat =
                                 new cv.Mat();
@@ -610,8 +647,9 @@ document
 
                             original.delete();
 
+
                             /*
-                                Punkty wzorca.
+                               Wykrywamy cechy wzorca.
                             */
 
                             templateKeypoints =
@@ -627,15 +665,23 @@ document
                                 templateDescriptors
                             );
 
-                            templateFeatures.textContent =
+
+                            /*
+                               Pokazujemy liczbę cech.
+                            */
+
+                            const count =
                                 templateKeypoints.size();
+
+                            templateFeatures.textContent =
+                                count;
 
                             statusText.textContent =
                                 "Wzorzec gotowy ✔";
 
                             console.log(
                                 "Cechy wzorca:",
-                                templateKeypoints.size()
+                                count
                             );
                         };
 
@@ -648,29 +694,34 @@ document
     );
 
 
-/*
-========================================
-CANVAS KAMERY
-========================================
-*/
+/* ========================================
+   CANVAS KAMERY
+======================================== */
 
-const canvas =
-    document.createElement("canvas");
+const cameraCanvas =
+    document.createElement(
+        "canvas"
+    );
 
-canvas.width = 640;
-canvas.height = 480;
+cameraCanvas.width = 640;
+cameraCanvas.height = 480;
 
-const canvasCtx =
-    canvas.getContext("2d");
+const cameraCtx =
+    cameraCanvas.getContext(
+        "2d"
+    );
 
 
-/*
-========================================
-ANALIZA
-========================================
-*/
+/* ========================================
+   ANALIZA
+======================================== */
 
 function analyze() {
+
+    /*
+       Nie analizujemy, jeśli nie ma
+       jeszcze wszystkiego.
+    */
 
     if (
         !cvReady ||
@@ -679,16 +730,19 @@ function analyze() {
         video.readyState < 2
     ) {
 
-        requestAnimationFrame(analyze);
+        requestAnimationFrame(
+            analyze
+        );
 
         return;
     }
 
+
     /*
-        Obraz z kamery.
+       Pobieramy obraz z kamery.
     */
 
-    canvasCtx.drawImage(
+    cameraCtx.drawImage(
         video,
         0,
         0,
@@ -696,8 +750,20 @@ function analyze() {
         480
     );
 
+
+    /*
+       OpenCV odczytuje klatkę.
+    */
+
     let frame =
-        cv.imread(canvas);
+        cv.imread(
+            cameraCanvas
+        );
+
+
+    /*
+       Skala szarości.
+    */
 
     let gray =
         new cv.Mat();
@@ -710,8 +776,10 @@ function analyze() {
 
     frame.delete();
 
+
     /*
-        Cechy kamery.
+       Wykrywamy cechy obrazu
+       z kamery.
     */
 
     const cameraKeypoints =
@@ -727,11 +795,16 @@ function analyze() {
         cameraDescriptors
     );
 
-    cameraFeatures.textContent =
+
+    const cameraCount =
         cameraKeypoints.size();
 
+    cameraFeatures.textContent =
+        cameraCount;
+
+
     /*
-        Jeśli kamera nie ma cech.
+       Kamera nie ma cech.
     */
 
     if (
@@ -753,21 +826,28 @@ function analyze() {
         result.style.background =
             "#8b0000";
 
+
         gray.delete();
+
         cameraKeypoints.delete();
+
         cameraDescriptors.delete();
+
 
         setTimeout(
             () =>
-                requestAnimationFrame(analyze),
+                requestAnimationFrame(
+                    analyze
+                ),
             500
         );
 
         return;
     }
 
+
     /*
-        Dopasowanie ORB.
+       Dopasowanie ORB.
     */
 
     const matcher =
@@ -779,6 +859,7 @@ function analyze() {
     const matches =
         new cv.DMatchVectorVector();
 
+
     matcher.knnMatch(
         templateDescriptors,
         cameraDescriptors,
@@ -786,9 +867,16 @@ function analyze() {
         2
     );
 
+
     let good = 0;
 
-    let total = matches.size();
+    const total =
+        matches.size();
+
+
+    /*
+       Filtr dopasowań.
+    */
 
     for (
         let i = 0;
@@ -802,24 +890,34 @@ function analyze() {
         if (pair.size() < 2)
             continue;
 
+
         const first =
             pair.get(0);
 
         const second =
             pair.get(1);
 
+
         /*
-            Test Lowe'a.
+           Teraz używamy 0.95,
+           więc filtr jest znacznie
+           bardziej tolerancyjny.
         */
 
         if (
             first.distance <
-            0.75 * second.distance
+            LOWE_RATIO *
+            second.distance
         ) {
 
             good++;
         }
     }
+
+
+    /*
+       Statystyki.
+    */
 
     allMatches.textContent =
         total;
@@ -827,17 +925,34 @@ function analyze() {
     goodMatches.textContent =
         good;
 
+
+    /*
+       Ile procent CECH WZORCA
+       znaleźliśmy?
+    */
+
     const templateCount =
         templateKeypoints.size();
 
-    const percent =
-        templateCount > 0
-        ? (good / templateCount) * 100
-        : 0;
+    let percent = 0;
+
+    if (templateCount > 0) {
+
+        percent =
+            (good / templateCount) *
+            100;
+    }
+
+    percent =
+        Math.min(
+            100,
+            percent
+        );
+
 
     const rounded =
         Math.round(
-            Math.min(100, percent)
+            percent
         );
 
     percentage.textContent =
@@ -845,13 +960,13 @@ function analyze() {
 
 
     /*
-        Na razie tylko diagnostyka.
-        
-        10 dobrych dopasowań
-        oznacza "znaleziono".
+       DECYZJA
     */
 
-    if (good >= 10) {
+    if (
+        percent >=
+        MATCH_THRESHOLD
+    ) {
 
         result.textContent =
             "🪙 ODBIERZ MONETĘ I PRZEJDŹ";
@@ -876,7 +991,7 @@ function analyze() {
 
 
     /*
-        Sprzątanie pamięci.
+       Czyszczenie pamięci OpenCV.
     */
 
     matcher.delete();
@@ -889,32 +1004,34 @@ function analyze() {
 
 
     /*
-        Następna analiza.
+       Następna klatka.
     */
 
     setTimeout(
         () =>
-            requestAnimationFrame(analyze),
+            requestAnimationFrame(
+                analyze
+            ),
         500
     );
 }
 
 
-/*
-========================================
-PRZYCISKI
-========================================
-*/
+/* ========================================
+   PRZYCISKI
+======================================== */
 
 document
     .getElementById("permission")
     .onclick =
     permission;
 
+
 document
     .getElementById("start")
     .onclick =
     startCamera;
+
 
 document
     .getElementById("stop")
@@ -923,10 +1040,24 @@ document
 
 
 /*
-========================================
-START
-========================================
+   Zmiana kamery
 */
+
+cameraSelect.addEventListener(
+    "change",
+    function () {
+
+        if (stream) {
+
+            startCamera();
+        }
+    }
+);
+
+
+/* ========================================
+   START
+======================================== */
 
 permission();
 
@@ -936,4 +1067,3 @@ analyze();
 
 </body>
 </html>
-```
