@@ -114,7 +114,7 @@ button:hover {
     width: 0%;
     height: 100%;
     background: #20c866;
-    transition: width 0.1s;
+    transition: width .1s;
 }
 
 #threshold {
@@ -130,7 +130,8 @@ canvas {
     display: none;
 }
 
-@media (max-width: 700px) {
+@media(max-width:700px) {
+
     .templates {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -156,15 +157,19 @@ canvas {
 
     <br>
 
-    <button id="refreshCameras">
-        🔄 Odśwież kamery
+    <button id="permission">
+        🔓 Zezwól na kamery
     </button>
 
-    <button id="startCamera">
-        ▶ Uruchom kamerę
+    <button id="refresh">
+        🔄 Odśwież
     </button>
 
-    <button id="stopCamera">
+    <button id="start">
+        ▶ Uruchom
+    </button>
+
+    <button id="stop">
         ⏹ Zatrzymaj
     </button>
 
@@ -177,12 +182,13 @@ canvas {
             type="number"
             min="0"
             max="100"
-            value="70"
-        > %
+            value="60"
+        >
+        %
     </label>
 
     <div id="status">
-        Kamera nie została uruchomiona.
+        Oczekiwanie...
     </div>
 
 </div>
@@ -191,8 +197,8 @@ canvas {
     id="video"
     autoplay
     muted
-    playsinline
-></video>
+    playsinline>
+</video>
 
 <div id="result">
     OCZEKIWANIE...
@@ -208,81 +214,42 @@ canvas {
 
     <div class="template">
         <h3>Wzorzec 1</h3>
-
         <img id="preview1">
-
-        <input
-            id="file1"
-            type="file"
-            accept="image/*"
-        >
-
-        <div id="score1" class="score">
-            0%
-        </div>
+        <input id="file1" type="file" accept="image/*">
+        <div id="score1" class="score">0%</div>
 
         <div class="bar">
             <div id="bar1" class="bar-inner"></div>
         </div>
     </div>
 
-
     <div class="template">
         <h3>Wzorzec 2</h3>
-
         <img id="preview2">
-
-        <input
-            id="file2"
-            type="file"
-            accept="image/*"
-        >
-
-        <div id="score2" class="score">
-            0%
-        </div>
+        <input id="file2" type="file" accept="image/*">
+        <div id="score2" class="score">0%</div>
 
         <div class="bar">
             <div id="bar2" class="bar-inner"></div>
         </div>
     </div>
 
-
     <div class="template">
         <h3>Wzorzec 3</h3>
-
         <img id="preview3">
-
-        <input
-            id="file3"
-            type="file"
-            accept="image/*"
-        >
-
-        <div id="score3" class="score">
-            0%
-        </div>
+        <input id="file3" type="file" accept="image/*">
+        <div id="score3" class="score">0%</div>
 
         <div class="bar">
-            <div id="bar4" class="bar-inner"></div>
+            <div id="bar3" class="bar-inner"></div>
         </div>
     </div>
 
-
     <div class="template">
         <h3>Wzorzec 4</h3>
-
         <img id="preview4">
-
-        <input
-            id="file4"
-            type="file"
-            accept="image/*"
-        >
-
-        <div id="score4" class="score">
-            0%
-        </div>
+        <input id="file4" type="file" accept="image/*">
+        <div id="score4" class="score">0%</div>
 
         <div class="bar">
             <div id="bar4" class="bar-inner"></div>
@@ -291,33 +258,40 @@ canvas {
 
 </div>
 
-<canvas
-    id="canvas"
-    width="64"
-    height="64">
-</canvas>
+<canvas id="cameraCanvas"></canvas>
 
 
 <script>
 
-const video = document.getElementById("video");
-const cameraSelect = document.getElementById("cameraSelect");
-const startButton = document.getElementById("startCamera");
-const stopButton = document.getElementById("stopCamera");
-const refreshButton = document.getElementById("refreshCameras");
+const video =
+    document.getElementById("video");
 
-const result = document.getElementById("result");
-const info = document.getElementById("info");
-const statusText = document.getElementById("status");
-const thresholdInput = document.getElementById("threshold");
+const cameraSelect =
+    document.getElementById("cameraSelect");
 
-const canvas = document.getElementById("canvas");
+const result =
+    document.getElementById("result");
 
-const ctx = canvas.getContext("2d", {
-    willReadFrequently: true
-});
+const info =
+    document.getElementById("info");
+
+const statusText =
+    document.getElementById("status");
+
+const thresholdInput =
+    document.getElementById("threshold");
+
+const cameraCanvas =
+    document.getElementById("cameraCanvas");
+
+const cameraCtx =
+    cameraCanvas.getContext("2d", {
+        willReadFrequently: true
+    });
 
 let stream = null;
+
+const SIZE = 32;
 
 const templates = [
     null,
@@ -328,148 +302,321 @@ const templates = [
 
 
 /*
-========================================
-WZORCE
-========================================
+==================================================
+POMOCNICZE
+==================================================
+*/
+
+function clamp(value, min, max) {
+    return Math.max(min, Math.min(max, value));
+}
+
+
+/*
+==================================================
+OBRAZ -> SKALA SZAROŚCI
+==================================================
+*/
+
+function grayscale(data) {
+
+    const result = new Float32Array(
+        data.width * data.height
+    );
+
+    let p = 0;
+
+    for (
+        let i = 0;
+        i < data.data.length;
+        i += 4
+    ) {
+
+        const r = data.data[i];
+        const g = data.data[i + 1];
+        const b = data.data[i + 2];
+
+        result[p++] =
+            r * 0.299 +
+            g * 0.587 +
+            b * 0.114;
+    }
+
+    return result;
+}
+
+
+/*
+==================================================
+NORMALIZACJA JASNOŚCI
+
+Dzięki temu zmiana oświetlenia
+nie rozwala wyniku tak łatwo.
+==================================================
+*/
+
+function normalize(array) {
+
+    let sum = 0;
+
+    for (const value of array) {
+        sum += value;
+    }
+
+    const mean =
+        sum / array.length;
+
+    let variance = 0;
+
+    for (const value of array) {
+
+        const d =
+            value - mean;
+
+        variance += d * d;
+    }
+
+    const deviation =
+        Math.sqrt(
+            variance / array.length
+        ) || 1;
+
+    const output =
+        new Float32Array(
+            array.length
+        );
+
+    for (let i = 0; i < array.length; i++) {
+
+        output[i] =
+            (array[i] - mean) /
+            deviation;
+    }
+
+    return output;
+}
+
+
+/*
+==================================================
+OBRÓT WZORCA
+
+Tworzymy 0°, 90°, 180° i 270°.
+==================================================
+*/
+
+function rotatePattern(pattern, angle) {
+
+    const output =
+        new Float32Array(
+            SIZE * SIZE
+        );
+
+    for (let y = 0; y < SIZE; y++) {
+
+        for (let x = 0; x < SIZE; x++) {
+
+            let sx;
+            let sy;
+
+            if (angle === 0) {
+
+                sx = x;
+                sy = y;
+
+            } else if (angle === 90) {
+
+                sx = y;
+                sy = SIZE - 1 - x;
+
+            } else if (angle === 180) {
+
+                sx = SIZE - 1 - x;
+                sy = SIZE - 1 - y;
+
+            } else {
+
+                sx = SIZE - 1 - y;
+                sy = x;
+            }
+
+            output[
+                y * SIZE + x
+            ] =
+                pattern[
+                    sy * SIZE + sx
+                ];
+        }
+    }
+
+    return output;
+}
+
+
+/*
+==================================================
+WCZYTANIE WZORCA
+==================================================
+*/
+
+function prepareTemplate(image) {
+
+    const canvas =
+        document.createElement("canvas");
+
+    canvas.width = SIZE;
+    canvas.height = SIZE;
+
+    const ctx =
+        canvas.getContext("2d", {
+            willReadFrequently: true
+        });
+
+    ctx.drawImage(
+        image,
+        0,
+        0,
+        SIZE,
+        SIZE
+    );
+
+    const pixels =
+        ctx.getImageData(
+            0,
+            0,
+            SIZE,
+            SIZE
+        );
+
+    const gray =
+        grayscale(pixels);
+
+    const normalized =
+        normalize(gray);
+
+    return {
+
+        rotations: [
+            rotatePattern(normalized, 0),
+            rotatePattern(normalized, 90),
+            rotatePattern(normalized, 180),
+            rotatePattern(normalized, 270)
+        ]
+    };
+}
+
+
+/*
+==================================================
+WCZYTANIE 4 WZORCÓW
+==================================================
 */
 
 for (let n = 1; n <= 4; n++) {
 
     const input =
-        document.getElementById("file" + n);
+        document.getElementById(
+            "file" + n
+        );
 
     const preview =
-        document.getElementById("preview" + n);
+        document.getElementById(
+            "preview" + n
+        );
 
-    input.addEventListener("change", function () {
+    input.addEventListener(
+        "change",
+        function () {
 
-        const file = this.files[0];
+            const file =
+                this.files[0];
 
-        if (!file) return;
+            if (!file)
+                return;
 
-        const reader = new FileReader();
+            const reader =
+                new FileReader();
 
-        reader.onload = function (event) {
+            reader.onload =
+                function (event) {
 
-            preview.src = event.target.result;
+                    preview.src =
+                        event.target.result;
 
-            const image = new Image();
+                    const image =
+                        new Image();
 
-            image.onload = function () {
+                    image.onload =
+                        function () {
 
-                const tempCanvas =
-                    document.createElement("canvas");
+                            templates[n - 1] =
+                                prepareTemplate(
+                                    image
+                                );
+                        };
 
-                tempCanvas.width = 64;
-                tempCanvas.height = 64;
+                    image.src =
+                        event.target.result;
+                };
 
-                const tempCtx =
-                    tempCanvas.getContext("2d", {
-                        willReadFrequently: true
-                    });
-
-                tempCtx.drawImage(
-                    image,
-                    0,
-                    0,
-                    64,
-                    64
-                );
-
-                templates[n - 1] =
-                    tempCtx.getImageData(
-                        0,
-                        0,
-                        64,
-                        64
-                    );
-            };
-
-            image.src = event.target.result;
-        };
-
-        reader.readAsDataURL(file);
-    });
+            reader.readAsDataURL(file);
+        }
+    );
 }
 
 
 /*
-========================================
+==================================================
 KAMERY
-========================================
+==================================================
 */
 
-async function requestCameraPermission() {
-
-    try {
-
-        const temporary =
-            await navigator.mediaDevices.getUserMedia({
-                video: true,
-                audio: false
-            });
-
-        temporary.getTracks().forEach(track => {
-            track.stop();
-        });
-
-        await loadCameras();
-
-    } catch (error) {
-
-        console.error(error);
-
-        statusText.textContent =
-            "Brak zgody na kamerę.";
-    }
-}
-
-
 async function loadCameras() {
-
-    if (!navigator.mediaDevices ||
-        !navigator.mediaDevices.enumerateDevices) {
-
-        statusText.textContent =
-            "Ta przeglądarka nie obsługuje wyboru kamer.";
-
-        return;
-    }
 
     try {
 
         const devices =
-            await navigator.mediaDevices.enumerateDevices();
+            await navigator.mediaDevices
+                .enumerateDevices();
 
         const cameras =
             devices.filter(
-                device => device.kind === "videoinput"
+                device =>
+                    device.kind ===
+                    "videoinput"
             );
 
         cameraSelect.innerHTML = "";
 
-        if (cameras.length === 0) {
+        if (!cameras.length) {
 
             cameraSelect.innerHTML =
-                "<option>Nie znaleziono kamery</option>";
+                "<option>Brak kamer</option>";
 
             return;
         }
 
-        cameras.forEach((camera, index) => {
+        cameras.forEach(
+            (camera, index) => {
 
-            const option =
-                document.createElement("option");
+                const option =
+                    document.createElement(
+                        "option"
+                    );
 
-            option.value =
-                camera.deviceId;
+                option.value =
+                    camera.deviceId;
 
-            option.textContent =
-                camera.label ||
-                "Kamera " + (index + 1);
+                option.textContent =
+                    camera.label ||
+                    "Kamera " +
+                    (index + 1);
 
-            cameraSelect.appendChild(option);
-        });
+                cameraSelect.appendChild(
+                    option
+                );
+            }
+        );
 
         statusText.textContent =
             "Znaleziono kamer: " +
@@ -480,15 +627,50 @@ async function loadCameras() {
         console.error(error);
 
         statusText.textContent =
-            "Nie można pobrać listy kamer.";
+            "Nie można pobrać kamer.";
     }
 }
 
 
 /*
-========================================
-START KAMERY
-========================================
+==================================================
+ZGODA
+==================================================
+*/
+
+async function permission() {
+
+    try {
+
+        const temporary =
+            await navigator.mediaDevices
+                .getUserMedia({
+                    video: true,
+                    audio: false
+                });
+
+        temporary
+            .getTracks()
+            .forEach(track =>
+                track.stop()
+            );
+
+        await loadCameras();
+
+    } catch (error) {
+
+        console.error(error);
+
+        statusText.textContent =
+            "Brak dostępu do kamery.";
+    }
+}
+
+
+/*
+==================================================
+START
+==================================================
 */
 
 async function startCamera() {
@@ -497,9 +679,11 @@ async function startCamera() {
 
         if (stream) {
 
-            stream.getTracks().forEach(track => {
-                track.stop();
-            });
+            stream
+                .getTracks()
+                .forEach(track =>
+                    track.stop()
+                );
         }
 
         const deviceId =
@@ -507,48 +691,40 @@ async function startCamera() {
 
         if (!deviceId) {
 
-            await requestCameraPermission();
+            await permission();
             return;
         }
 
         stream =
-            await navigator.mediaDevices.getUserMedia({
+            await navigator.mediaDevices
+                .getUserMedia({
 
-                video: {
-                    deviceId: {
-                        exact: deviceId
+                    video: {
+                        deviceId: {
+                            exact: deviceId
+                        },
+
+                        width: {
+                            ideal: 1280
+                        },
+
+                        height: {
+                            ideal: 720
+                        }
                     },
-                    width: {
-                        ideal: 1920
-                    },
-                    height: {
-                        ideal: 1080
-                    }
-                },
 
-                audio: false
-            });
+                    audio: false
+                });
 
-        video.srcObject = stream;
+        video.srcObject =
+            stream;
 
         statusText.textContent =
             "Kamera działa.";
 
-        result.textContent =
-            "KAMERA URUCHOMIONA";
-
-        result.style.background =
-            "#333";
-
     } catch (error) {
 
         console.error(error);
-
-        result.textContent =
-            "BŁĄD KAMERY";
-
-        result.style.background =
-            "#8b0000";
 
         statusText.textContent =
             error.message;
@@ -557,18 +733,20 @@ async function startCamera() {
 
 
 /*
-========================================
+==================================================
 STOP
-========================================
+==================================================
 */
 
 function stopCamera() {
 
     if (stream) {
 
-        stream.getTracks().forEach(track => {
-            track.stop();
-        });
+        stream
+            .getTracks()
+            .forEach(track =>
+                track.stop()
+            );
 
         stream = null;
     }
@@ -580,102 +758,246 @@ function stopCamera() {
 
     result.style.background =
         "#333";
-
-    statusText.textContent =
-        "Kamera zatrzymana.";
 }
 
 
 /*
-========================================
-PORÓWNANIE
-========================================
+==================================================
+PORÓWNANIE DWÓCH OBRAZÓW
+
+Korelacja zamiast prostego odejmowania pikseli.
+==================================================
 */
 
-function compareImages(camera, template) {
+function similarity(a, b) {
 
-    if (!template) {
+    let sum = 0;
+
+    let aa = 0;
+    let bb = 0;
+
+    for (let i = 0; i < a.length; i++) {
+
+        sum += a[i] * b[i];
+
+        aa += a[i] * a[i];
+
+        bb += b[i] * b[i];
+    }
+
+    if (!aa || !bb)
         return 0;
-    }
 
-    let difference = 0;
+    const correlation =
+        sum /
+        Math.sqrt(aa * bb);
 
-    for (
-        let i = 0;
-        i < camera.data.length;
-        i += 4
-    ) {
-
-        difference +=
-            Math.abs(
-                camera.data[i] -
-                template.data[i]
-            );
-
-        difference +=
-            Math.abs(
-                camera.data[i + 1] -
-                template.data[i + 1]
-            );
-
-        difference +=
-            Math.abs(
-                camera.data[i + 2] -
-                template.data[i + 2]
-            );
-    }
-
-    const maxDifference =
-        (camera.data.length / 4) * 765;
-
-    return Math.max(
+    return clamp(
+        ((correlation + 1) / 2) * 100,
         0,
-        Math.min(
-            100,
-            100 -
-            difference / maxDifference * 100
-        )
+        100
     );
 }
 
 
 /*
-========================================
-ANALIZA
-========================================
+==================================================
+WYCIĘCIE FRAGMENTU KAMERY
+==================================================
 */
 
-function analyze() {
+function getCameraPatch(
+    source,
+    x,
+    y,
+    width,
+    height
+) {
+
+    const patchCanvas =
+        document.createElement("canvas");
+
+    patchCanvas.width = SIZE;
+    patchCanvas.height = SIZE;
+
+    const patchCtx =
+        patchCanvas.getContext("2d", {
+            willReadFrequently: true
+        });
+
+    patchCtx.drawImage(
+        source,
+        x,
+        y,
+        width,
+        height,
+        0,
+        0,
+        SIZE,
+        SIZE
+    );
+
+    const pixels =
+        patchCtx.getImageData(
+            0,
+            0,
+            SIZE,
+            SIZE
+        );
+
+    return normalize(
+        grayscale(pixels)
+    );
+}
+
+
+/*
+==================================================
+SZUKANIE W CAŁYM OBRAZIE
+
+Przeszukujemy różne miejsca
+i różne rozmiary.
+==================================================
+*/
+
+function findBestMatch(template) {
+
+    if (!template)
+        return 0;
+
+    const videoWidth =
+        video.videoWidth;
+
+    const videoHeight =
+        video.videoHeight;
+
+    if (!videoWidth || !videoHeight)
+        return 0;
+
+    /*
+        Rozmiary fragmentu.
+        Dzięki temu moneta może być
+        bliżej albo dalej od kamery.
+    */
+
+    const scales = [
+        0.25,
+        0.35,
+        0.50,
+        0.65,
+        0.80
+    ];
+
+    let best = 0;
+
+    for (const scale of scales) {
+
+        const patchWidth =
+            videoWidth * scale;
+
+        const patchHeight =
+            patchWidth;
+
+        if (
+            patchWidth > videoWidth ||
+            patchHeight > videoHeight
+        )
+            continue;
+
+        /*
+            Co kilka procent kadru.
+            Nie sprawdzamy każdego piksela,
+            bo byłoby to bardzo ciężkie dla CPU.
+        */
+
+        const stepX =
+            Math.max(
+                20,
+                Math.floor(
+                    videoWidth * 0.08
+                )
+            );
+
+        const stepY =
+            Math.max(
+                20,
+                Math.floor(
+                    videoHeight * 0.08
+                )
+            );
+
+        for (
+            let y = 0;
+            y <= videoHeight - patchHeight;
+            y += stepY
+        ) {
+
+            for (
+                let x = 0;
+                x <= videoWidth - patchWidth;
+                x += stepX
+            ) {
+
+                const patch =
+                    getCameraPatch(
+                        video,
+                        x,
+                        y,
+                        patchWidth,
+                        patchHeight
+                    );
+
+                /*
+                    Sprawdzamy 4 obroty.
+                */
+
+                for (
+                    const rotated
+                    of template.rotations
+                ) {
+
+                    const score =
+                        similarity(
+                            patch,
+                            rotated
+                        );
+
+                    if (score > best)
+                        best = score;
+                }
+            }
+        }
+    }
+
+    return best;
+}
+
+
+/*
+==================================================
+ANALIZA
+==================================================
+*/
+
+let analyzing = false;
+
+async function analyze() {
 
     if (
         stream &&
-        video.readyState >= 2
+        video.readyState >= 2 &&
+        !analyzing
     ) {
 
-        ctx.drawImage(
-            video,
-            0,
-            0,
-            64,
-            64
-        );
-
-        const camera =
-            ctx.getImageData(
-                0,
-                0,
-                64,
-                64
-            );
+        analyzing = true;
 
         let bestScore = 0;
-        let bestTemplate = 0;
+        let bestNumber = 0;
 
         for (let i = 0; i < 4; i++) {
 
             const score =
-                compareImages(
-                    camera,
+                findBestMatch(
                     templates[i]
                 );
 
@@ -695,21 +1017,23 @@ function analyze() {
             if (score > bestScore) {
 
                 bestScore = score;
-                bestTemplate = i + 1;
+                bestNumber = i + 1;
             }
         }
 
         const threshold =
-            Number(thresholdInput.value);
+            Number(
+                thresholdInput.value
+            );
 
         info.textContent =
             "Najlepsze podobieństwo: " +
             Math.round(bestScore) +
             "% — wzorzec " +
-            bestTemplate;
+            bestNumber;
 
         if (
-            bestTemplate > 0 &&
+            bestNumber > 0 &&
             bestScore >= threshold
         ) {
 
@@ -727,51 +1051,65 @@ function analyze() {
             result.style.background =
                 "#8b0000";
         }
+
+        analyzing = false;
     }
 
-    requestAnimationFrame(analyze);
+    /*
+        Analizujemy mniej więcej 4 razy na sekundę,
+        żeby nie zajechać procesora.
+    */
+
+    setTimeout(
+        () => requestAnimationFrame(analyze),
+        250
+    );
 }
 
 
 /*
-========================================
-ZDARZENIA
-========================================
+==================================================
+PRZYCISKI
+==================================================
 */
 
-startButton.addEventListener(
-    "click",
-    startCamera
-);
+document
+    .getElementById("permission")
+    .onclick =
+    permission;
 
-stopButton.addEventListener(
-    "click",
-    stopCamera
-);
+document
+    .getElementById("refresh")
+    .onclick =
+    permission;
 
-refreshButton.addEventListener(
-    "click",
-    requestCameraPermission
-);
+document
+    .getElementById("start")
+    .onclick =
+    startCamera;
+
+document
+    .getElementById("stop")
+    .onclick =
+    stopCamera;
 
 cameraSelect.addEventListener(
     "change",
-    function () {
+    () => {
 
-        if (stream) {
+        if (stream)
             startCamera();
-        }
     }
 );
 
 
 /*
-========================================
+==================================================
 START
-========================================
+==================================================
 */
 
-requestCameraPermission();
+permission();
 
 analyze();
 
