@@ -1,0 +1,782 @@
+```html
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kontrola monety</title>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    background: #101010;
+    color: white;
+    font-family: Arial, sans-serif;
+    text-align: center;
+}
+
+h1 {
+    margin: 20px 0;
+}
+
+.panel {
+    width: min(1100px, 95%);
+    margin: 15px auto;
+    padding: 20px;
+    background: #202020;
+    border-radius: 16px;
+}
+
+select,
+button,
+input {
+    padding: 10px;
+    margin: 5px;
+    border: 0;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+button {
+    background: #333;
+    color: white;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #444;
+}
+
+#video {
+    width: min(1000px, 95%);
+    max-height: 65vh;
+    background: black;
+    border-radius: 16px;
+    object-fit: contain;
+}
+
+#result {
+    width: min(1000px, 95%);
+    margin: 20px auto;
+    padding: 30px;
+    border-radius: 16px;
+    background: #333;
+    font-size: 34px;
+    font-weight: bold;
+}
+
+#info {
+    font-size: 18px;
+    margin: 10px;
+}
+
+.templates {
+    width: min(1100px, 95%);
+    margin: 20px auto;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 15px;
+}
+
+.template {
+    background: #202020;
+    padding: 12px;
+    border-radius: 14px;
+}
+
+.template img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: contain;
+    background: #000;
+    border-radius: 10px;
+}
+
+.score {
+    margin-top: 8px;
+    font-size: 18px;
+}
+
+.bar {
+    width: 100%;
+    height: 12px;
+    margin-top: 7px;
+    background: #444;
+    border-radius: 20px;
+    overflow: hidden;
+}
+
+.bar-inner {
+    width: 0%;
+    height: 100%;
+    background: #20c866;
+    transition: width 0.1s;
+}
+
+#threshold {
+    width: 75px;
+}
+
+#status {
+    margin: 10px;
+    color: #aaa;
+}
+
+canvas {
+    display: none;
+}
+
+@media (max-width: 700px) {
+    .templates {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    #result {
+        font-size: 24px;
+    }
+}
+</style>
+</head>
+
+<body>
+
+<h1>🪙 Kontrola monety</h1>
+
+<div class="panel">
+
+    <h2>📷 Kamera</h2>
+
+    <select id="cameraSelect">
+        <option value="">Wybierz kamerę...</option>
+    </select>
+
+    <br>
+
+    <button id="refreshCameras">
+        🔄 Odśwież kamery
+    </button>
+
+    <button id="startCamera">
+        ▶ Uruchom kamerę
+    </button>
+
+    <button id="stopCamera">
+        ⏹ Zatrzymaj
+    </button>
+
+    <br><br>
+
+    <label>
+        Próg podobieństwa:
+        <input
+            id="threshold"
+            type="number"
+            min="0"
+            max="100"
+            value="70"
+        > %
+    </label>
+
+    <div id="status">
+        Kamera nie została uruchomiona.
+    </div>
+
+</div>
+
+<video
+    id="video"
+    autoplay
+    muted
+    playsinline
+></video>
+
+<div id="result">
+    OCZEKIWANIE...
+</div>
+
+<div id="info">
+    Najlepsze podobieństwo: 0%
+</div>
+
+<h2>🖼️ Wzorce</h2>
+
+<div class="templates">
+
+    <div class="template">
+        <h3>Wzorzec 1</h3>
+
+        <img id="preview1">
+
+        <input
+            id="file1"
+            type="file"
+            accept="image/*"
+        >
+
+        <div id="score1" class="score">
+            0%
+        </div>
+
+        <div class="bar">
+            <div id="bar1" class="bar-inner"></div>
+        </div>
+    </div>
+
+
+    <div class="template">
+        <h3>Wzorzec 2</h3>
+
+        <img id="preview2">
+
+        <input
+            id="file2"
+            type="file"
+            accept="image/*"
+        >
+
+        <div id="score2" class="score">
+            0%
+        </div>
+
+        <div class="bar">
+            <div id="bar2" class="bar-inner"></div>
+        </div>
+    </div>
+
+
+    <div class="template">
+        <h3>Wzorzec 3</h3>
+
+        <img id="preview3">
+
+        <input
+            id="file3"
+            type="file"
+            accept="image/*"
+        >
+
+        <div id="score3" class="score">
+            0%
+        </div>
+
+        <div class="bar">
+            <div id="bar4" class="bar-inner"></div>
+        </div>
+    </div>
+
+
+    <div class="template">
+        <h3>Wzorzec 4</h3>
+
+        <img id="preview4">
+
+        <input
+            id="file4"
+            type="file"
+            accept="image/*"
+        >
+
+        <div id="score4" class="score">
+            0%
+        </div>
+
+        <div class="bar">
+            <div id="bar4" class="bar-inner"></div>
+        </div>
+    </div>
+
+</div>
+
+<canvas
+    id="canvas"
+    width="64"
+    height="64">
+</canvas>
+
+
+<script>
+
+const video = document.getElementById("video");
+const cameraSelect = document.getElementById("cameraSelect");
+const startButton = document.getElementById("startCamera");
+const stopButton = document.getElementById("stopCamera");
+const refreshButton = document.getElementById("refreshCameras");
+
+const result = document.getElementById("result");
+const info = document.getElementById("info");
+const statusText = document.getElementById("status");
+const thresholdInput = document.getElementById("threshold");
+
+const canvas = document.getElementById("canvas");
+
+const ctx = canvas.getContext("2d", {
+    willReadFrequently: true
+});
+
+let stream = null;
+
+const templates = [
+    null,
+    null,
+    null,
+    null
+];
+
+
+/*
+========================================
+WZORCE
+========================================
+*/
+
+for (let n = 1; n <= 4; n++) {
+
+    const input =
+        document.getElementById("file" + n);
+
+    const preview =
+        document.getElementById("preview" + n);
+
+    input.addEventListener("change", function () {
+
+        const file = this.files[0];
+
+        if (!file) return;
+
+        const reader = new FileReader();
+
+        reader.onload = function (event) {
+
+            preview.src = event.target.result;
+
+            const image = new Image();
+
+            image.onload = function () {
+
+                const tempCanvas =
+                    document.createElement("canvas");
+
+                tempCanvas.width = 64;
+                tempCanvas.height = 64;
+
+                const tempCtx =
+                    tempCanvas.getContext("2d", {
+                        willReadFrequently: true
+                    });
+
+                tempCtx.drawImage(
+                    image,
+                    0,
+                    0,
+                    64,
+                    64
+                );
+
+                templates[n - 1] =
+                    tempCtx.getImageData(
+                        0,
+                        0,
+                        64,
+                        64
+                    );
+            };
+
+            image.src = event.target.result;
+        };
+
+        reader.readAsDataURL(file);
+    });
+}
+
+
+/*
+========================================
+KAMERY
+========================================
+*/
+
+async function requestCameraPermission() {
+
+    try {
+
+        const temporary =
+            await navigator.mediaDevices.getUserMedia({
+                video: true,
+                audio: false
+            });
+
+        temporary.getTracks().forEach(track => {
+            track.stop();
+        });
+
+        await loadCameras();
+
+    } catch (error) {
+
+        console.error(error);
+
+        statusText.textContent =
+            "Brak zgody na kamerę.";
+    }
+}
+
+
+async function loadCameras() {
+
+    if (!navigator.mediaDevices ||
+        !navigator.mediaDevices.enumerateDevices) {
+
+        statusText.textContent =
+            "Ta przeglądarka nie obsługuje wyboru kamer.";
+
+        return;
+    }
+
+    try {
+
+        const devices =
+            await navigator.mediaDevices.enumerateDevices();
+
+        const cameras =
+            devices.filter(
+                device => device.kind === "videoinput"
+            );
+
+        cameraSelect.innerHTML = "";
+
+        if (cameras.length === 0) {
+
+            cameraSelect.innerHTML =
+                "<option>Nie znaleziono kamery</option>";
+
+            return;
+        }
+
+        cameras.forEach((camera, index) => {
+
+            const option =
+                document.createElement("option");
+
+            option.value =
+                camera.deviceId;
+
+            option.textContent =
+                camera.label ||
+                "Kamera " + (index + 1);
+
+            cameraSelect.appendChild(option);
+        });
+
+        statusText.textContent =
+            "Znaleziono kamer: " +
+            cameras.length;
+
+    } catch (error) {
+
+        console.error(error);
+
+        statusText.textContent =
+            "Nie można pobrać listy kamer.";
+    }
+}
+
+
+/*
+========================================
+START KAMERY
+========================================
+*/
+
+async function startCamera() {
+
+    try {
+
+        if (stream) {
+
+            stream.getTracks().forEach(track => {
+                track.stop();
+            });
+        }
+
+        const deviceId =
+            cameraSelect.value;
+
+        if (!deviceId) {
+
+            await requestCameraPermission();
+            return;
+        }
+
+        stream =
+            await navigator.mediaDevices.getUserMedia({
+
+                video: {
+                    deviceId: {
+                        exact: deviceId
+                    },
+                    width: {
+                        ideal: 1920
+                    },
+                    height: {
+                        ideal: 1080
+                    }
+                },
+
+                audio: false
+            });
+
+        video.srcObject = stream;
+
+        statusText.textContent =
+            "Kamera działa.";
+
+        result.textContent =
+            "KAMERA URUCHOMIONA";
+
+        result.style.background =
+            "#333";
+
+    } catch (error) {
+
+        console.error(error);
+
+        result.textContent =
+            "BŁĄD KAMERY";
+
+        result.style.background =
+            "#8b0000";
+
+        statusText.textContent =
+            error.message;
+    }
+}
+
+
+/*
+========================================
+STOP
+========================================
+*/
+
+function stopCamera() {
+
+    if (stream) {
+
+        stream.getTracks().forEach(track => {
+            track.stop();
+        });
+
+        stream = null;
+    }
+
+    video.srcObject = null;
+
+    result.textContent =
+        "KAMERA ZATRZYMANA";
+
+    result.style.background =
+        "#333";
+
+    statusText.textContent =
+        "Kamera zatrzymana.";
+}
+
+
+/*
+========================================
+PORÓWNANIE
+========================================
+*/
+
+function compareImages(camera, template) {
+
+    if (!template) {
+        return 0;
+    }
+
+    let difference = 0;
+
+    for (
+        let i = 0;
+        i < camera.data.length;
+        i += 4
+    ) {
+
+        difference +=
+            Math.abs(
+                camera.data[i] -
+                template.data[i]
+            );
+
+        difference +=
+            Math.abs(
+                camera.data[i + 1] -
+                template.data[i + 1]
+            );
+
+        difference +=
+            Math.abs(
+                camera.data[i + 2] -
+                template.data[i + 2]
+            );
+    }
+
+    const maxDifference =
+        (camera.data.length / 4) * 765;
+
+    return Math.max(
+        0,
+        Math.min(
+            100,
+            100 -
+            difference / maxDifference * 100
+        )
+    );
+}
+
+
+/*
+========================================
+ANALIZA
+========================================
+*/
+
+function analyze() {
+
+    if (
+        stream &&
+        video.readyState >= 2
+    ) {
+
+        ctx.drawImage(
+            video,
+            0,
+            0,
+            64,
+            64
+        );
+
+        const camera =
+            ctx.getImageData(
+                0,
+                0,
+                64,
+                64
+            );
+
+        let bestScore = 0;
+        let bestTemplate = 0;
+
+        for (let i = 0; i < 4; i++) {
+
+            const score =
+                compareImages(
+                    camera,
+                    templates[i]
+                );
+
+            const rounded =
+                Math.round(score);
+
+            document.getElementById(
+                "score" + (i + 1)
+            ).textContent =
+                rounded + "%";
+
+            document.getElementById(
+                "bar" + (i + 1)
+            ).style.width =
+                rounded + "%";
+
+            if (score > bestScore) {
+
+                bestScore = score;
+                bestTemplate = i + 1;
+            }
+        }
+
+        const threshold =
+            Number(thresholdInput.value);
+
+        info.textContent =
+            "Najlepsze podobieństwo: " +
+            Math.round(bestScore) +
+            "% — wzorzec " +
+            bestTemplate;
+
+        if (
+            bestTemplate > 0 &&
+            bestScore >= threshold
+        ) {
+
+            result.textContent =
+                "ODBIERZ MONETĘ I PRZEJDŹ";
+
+            result.style.background =
+                "#087f23";
+
+        } else {
+
+            result.textContent =
+                "SPADAJ STĄD";
+
+            result.style.background =
+                "#8b0000";
+        }
+    }
+
+    requestAnimationFrame(analyze);
+}
+
+
+/*
+========================================
+ZDARZENIA
+========================================
+*/
+
+startButton.addEventListener(
+    "click",
+    startCamera
+);
+
+stopButton.addEventListener(
+    "click",
+    stopCamera
+);
+
+refreshButton.addEventListener(
+    "click",
+    requestCameraPermission
+);
+
+cameraSelect.addEventListener(
+    "change",
+    function () {
+
+        if (stream) {
+            startCamera();
+        }
+    }
+);
+
+
+/*
+========================================
+START
+========================================
+*/
+
+requestCameraPermission();
+
+analyze();
+
+</script>
+
+</body>
+</html>
+```
